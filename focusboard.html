@@ -1,0 +1,966 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Focusboard — Elegant To-Do + Notes (Single-File)</title>
+  <meta name="color-scheme" content="light dark"/>
+
+  <style>
+    :root{
+      --bg0:#0b1020;
+      --bg1:#0e1630;
+      --card: rgba(255,255,255,0.08);
+      --card2: rgba(255,255,255,0.06);
+      --stroke: rgba(255,255,255,0.14);
+      --text: rgba(255,255,255,0.92);
+      --muted: rgba(255,255,255,0.70);
+      --muted2: rgba(255,255,255,0.55);
+
+      --accent:#7c5cff;
+      --accent2:#27d7ff;
+      --good:#43f0b3;
+      --warn:#ffd166;
+      --bad:#ff5c7a;
+
+      --shadow: 0 20px 60px rgba(0,0,0,0.45);
+      --radius: 18px;
+
+      --ring: rgba(124,92,255,0.35);
+      --ring2: rgba(39,215,255,0.28);
+    }
+
+    /* Light theme overrides */
+    [data-theme="light"]{
+      --bg0:#f6f7fb;
+      --bg1:#eef1ff;
+      --card: rgba(255,255,255,0.78);
+      --card2: rgba(255,255,255,0.62);
+      --stroke: rgba(14,22,48,0.12);
+      --text: rgba(14,22,48,0.92);
+      --muted: rgba(14,22,48,0.72);
+      --muted2: rgba(14,22,48,0.55);
+
+      --shadow: 0 18px 50px rgba(14,22,48,0.16);
+      --ring: rgba(124,92,255,0.22);
+      --ring2: rgba(39,215,255,0.16);
+    }
+
+    *{ box-sizing: border-box; }
+    html, body { height: 100%; }
+
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      color: var(--text);
+      background:
+        radial-gradient(1200px 700px at 15% 10%, var(--ring), transparent 55%),
+        radial-gradient(900px 600px at 85% 15%, var(--ring2), transparent 55%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      overflow-x: hidden;
+
+      /* Custom cursor (we draw our own) */
+      cursor: none;
+    }
+
+    /* Let text inputs still show text cursor */
+    input, textarea { cursor: text; }
+    button, a, [role="button"], .clickable { cursor: none; }
+
+    /* Reduced motion: keep it calm */
+    @media (prefers-reduced-motion: reduce){
+      * { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+      body { cursor: auto; }
+      .cursor, .cursor-dot { display:none !important; }
+      button, a { cursor: pointer; }
+      input, textarea { cursor: text; }
+    }
+
+    .wrap{
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 28px 18px 60px;
+    }
+
+    header{
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap: 12px;
+      user-select:none;
+    }
+
+    .logo{
+      width: 40px; height: 40px;
+      border-radius: 14px;
+      background:
+        radial-gradient(16px 16px at 30% 30%, rgba(255,255,255,0.65), transparent 60%),
+        linear-gradient(135deg, var(--accent), var(--accent2));
+      box-shadow: 0 14px 35px rgba(124,92,255,0.35);
+      border: 1px solid rgba(255,255,255,0.14);
+    }
+
+    .brand h1{
+      font-size: 18px;
+      margin: 0;
+      letter-spacing: 0.3px;
+      line-height: 1.1;
+    }
+    .brand p{
+      margin: 2px 0 0;
+      font-size: 12px;
+      color: var(--muted2);
+    }
+
+    .top-actions{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .pill{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 999px;
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.10);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .datetime{
+      font-size: 12.5px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .btn{
+      border: 1px solid var(--stroke);
+      background: linear-gradient(180deg, var(--card), var(--card2));
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.10);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+      display:inline-flex;
+      align-items:center;
+      gap: 8px;
+      user-select:none;
+    }
+    .btn:hover{ transform: translateY(-1px); border-color: rgba(255,255,255,0.22); box-shadow: 0 16px 32px rgba(0,0,0,0.16); }
+    .btn:active{ transform: translateY(0px) scale(0.99); }
+
+    .btn.primary{
+      border: 1px solid rgba(255,255,255,0.18);
+      background: linear-gradient(135deg, rgba(124,92,255,0.92), rgba(39,215,255,0.78));
+      box-shadow: 0 18px 45px rgba(124,92,255,0.25);
+    }
+
+    main{
+      display:grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 16px;
+      margin-top: 14px;
+    }
+    @media (max-width: 980px){
+      main { grid-template-columns: 1fr; }
+    }
+
+    .card{
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .card::before{
+      content:"";
+      position:absolute;
+      inset:-2px;
+      background:
+        radial-gradient(600px 220px at 20% 10%, rgba(124,92,255,0.18), transparent 55%),
+        radial-gradient(500px 220px at 80% 0%, rgba(39,215,255,0.14), transparent 55%);
+      pointer-events:none;
+      opacity: 0.9;
+    }
+
+    .card > *{ position: relative; z-index: 1; }
+
+    .card-header{
+      padding: 16px 16px 12px;
+      display:flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .card-title{
+      display:flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .card-title h2{
+      margin: 0;
+      font-size: 15px;
+      letter-spacing: 0.2px;
+    }
+    .card-title span{
+      font-size: 12px;
+      color: var(--muted2);
+    }
+
+    .content{
+      padding: 14px 16px 16px;
+    }
+
+    .row{
+      display:flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .field{
+      flex: 1;
+      min-width: 220px;
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      background: rgba(0,0,0,0.12);
+      color: var(--text);
+      padding: 11px 12px;
+      outline: none;
+      transition: border-color 120ms ease, box-shadow 120ms ease;
+    }
+    [data-theme="light"] .field{
+      background: rgba(14,22,48,0.05);
+    }
+    .field:focus{
+      border-color: rgba(124,92,255,0.55);
+      box-shadow: 0 0 0 3px rgba(124,92,255,0.18);
+    }
+
+    .select{
+      min-width: 160px;
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      background: rgba(0,0,0,0.12);
+      color: var(--text);
+      padding: 11px 12px;
+      outline: none;
+    }
+    [data-theme="light"] .select{ background: rgba(14,22,48,0.05); }
+
+    .hint{
+      margin: 10px 0 0;
+      font-size: 12px;
+      color: var(--muted2);
+      line-height: 1.4;
+    }
+
+    .list{
+      margin-top: 14px;
+      display:flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .item{
+      display:flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 12px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(0,0,0,0.10);
+      transition: transform 120ms ease, border-color 120ms ease;
+    }
+    [data-theme="light"] .item{ background: rgba(14,22,48,0.04); }
+    .item:hover{
+      transform: translateY(-1px);
+      border-color: rgba(255,255,255,0.18);
+    }
+
+    .check{
+      width: 20px; height: 20px;
+      border-radius: 8px;
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,0.06);
+      display:grid;
+      place-items:center;
+      flex: 0 0 auto;
+    }
+    .check input{
+      width: 16px; height: 16px;
+      margin: 0;
+      accent-color: var(--accent);
+      cursor: pointer; /* keep default pointer in reduced motion */
+    }
+
+    .text{
+      flex: 1 1 auto;
+      min-width: 160px;
+      display:flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .text strong{
+      font-size: 13.5px;
+      font-weight: 650;
+      letter-spacing: 0.2px;
+      line-height: 1.25;
+      word-break: break-word;
+    }
+    .text small{
+      color: var(--muted2);
+      font-size: 12px;
+    }
+
+    .tag{
+      font-size: 11px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.14);
+      color: var(--muted);
+      background: rgba(255,255,255,0.06);
+      user-select:none;
+    }
+    .tag.good{ border-color: rgba(67,240,179,0.35); color: rgba(67,240,179,0.95); }
+    .tag.warn{ border-color: rgba(255,209,102,0.35); color: rgba(255,209,102,0.98); }
+    .tag.bad{  border-color: rgba(255,92,122,0.35); color: rgba(255,92,122,0.98); }
+
+    .icon-btn{
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      width: 38px; height: 38px;
+      border-radius: 14px;
+      display:grid;
+      place-items:center;
+      transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+      user-select:none;
+    }
+    .icon-btn:hover{ transform: translateY(-1px); border-color: rgba(255,255,255,0.22); background: rgba(255,255,255,0.10); }
+    .icon-btn:active{ transform: translateY(0px) scale(0.99); }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .kpis{
+      display:grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    @media (max-width: 560px){
+      .kpis{ grid-template-columns: 1fr; }
+    }
+    .kpi{
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(0,0,0,0.10);
+    }
+    [data-theme="light"] .kpi{ background: rgba(14,22,48,0.04); }
+    .kpi b{
+      display:block;
+      font-size: 16px;
+      letter-spacing: 0.2px;
+      margin-bottom: 4px;
+    }
+    .kpi span{
+      font-size: 12px;
+      color: var(--muted2);
+    }
+
+    textarea{
+      width: 100%;
+      min-height: 220px;
+      resize: vertical;
+      line-height: 1.5;
+      font-size: 13px;
+    }
+
+    .footer-note{
+      margin-top: 14px;
+      font-size: 12px;
+      color: var(--muted2);
+      text-align:center;
+    }
+
+    /* --- Custom Cursor --- */
+    .cursor-dot, .cursor{
+      position: fixed;
+      top: 0; left: 0;
+      pointer-events: none;
+      z-index: 9999;
+      transform: translate(-50%, -50%);
+      will-change: transform, width, height, opacity;
+      mix-blend-mode: screen;
+    }
+
+    .cursor-dot{
+      width: 8px; height: 8px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      box-shadow: 0 0 18px rgba(124,92,255,0.45);
+      opacity: 0.95;
+    }
+
+    .cursor{
+      width: 34px; height: 34px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.25);
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.10), rgba(255,255,255,0.02));
+      box-shadow: 0 0 0 4px rgba(124,92,255,0.06), 0 0 24px rgba(39,215,255,0.10);
+      transition: width 120ms ease, height 120ms ease, opacity 120ms ease, border-color 120ms ease;
+      opacity: 0.85;
+    }
+
+    .cursor.is-hover{
+      width: 44px; height: 44px;
+      border-color: rgba(124,92,255,0.55);
+      opacity: 0.95;
+    }
+
+    .cursor.is-down{
+      width: 28px; height: 28px;
+      opacity: 0.95;
+    }
+
+    .cursor.is-hidden,
+    .cursor-dot.is-hidden{
+      opacity: 0;
+    }
+
+    /* Small inline SVG icons */
+    .svg{
+      width: 16px; height: 16px;
+      display:inline-block;
+      vertical-align: -3px;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Custom cursor elements -->
+  <div class="cursor-dot" id="cursorDot" aria-hidden="true"></div>
+  <div class="cursor" id="cursorRing" aria-hidden="true"></div>
+
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>Focusboard</h1>
+          <p>Elegant To-Do + Notes — saved locally in your browser</p>
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <div class="pill">
+          <span class="datetime" id="datetime">—</span>
+        </div>
+
+        <button class="btn" id="toggleTheme" type="button" aria-label="Toggle theme">
+          <svg class="svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z" stroke="currentColor" stroke-width="2"/>
+            <path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5 3.6 3.6M20.4 20.4 19 19M19 5l1.4-1.4M3.6 20.4 5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          Theme
+        </button>
+
+        <button class="btn primary" id="exportData" type="button" aria-label="Export data">
+          <svg class="svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 3v10m0 0 4-4m-4 4-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M4 14v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          Export
+        </button>
+      </div>
+    </header>
+
+    <main>
+      <!-- TODO -->
+      <section class="card" aria-label="To-Do">
+        <div class="card-header">
+          <div class="card-title">
+            <h2>To-Do List</h2>
+            <span>Add tasks, set priority, and track progress.</span>
+          </div>
+
+          <div class="row">
+            <select class="select clickable" id="filter" aria-label="Filter tasks">
+              <option value="all">All</option>
+              <option value="open">Open</option>
+              <option value="done">Done</option>
+            </select>
+
+            <button class="icon-btn clickable" id="clearDone" type="button" title="Clear done tasks" aria-label="Clear done tasks">
+              <svg class="svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M6 6l1 16a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M10 11v7M14 11v7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="content">
+          <div class="row">
+            <input class="field clickable" id="taskText" type="text" placeholder="Write a task… (e.g., Finish report)" maxlength="80" />
+            <select class="select clickable" id="priority" aria-label="Priority">
+              <option value="good">Low</option>
+              <option value="warn" selected>Medium</option>
+              <option value="bad">High</option>
+            </select>
+            <button class="btn primary clickable" id="addTask" type="button">
+              <svg class="svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              Add
+            </button>
+          </div>
+
+          <p class="hint">
+            Tip: Press <b>Enter</b> to add quickly. Your data is saved in <b>localStorage</b> (no server needed).
+          </p>
+
+          <div class="kpis" aria-label="Task stats">
+            <div class="kpi">
+              <b id="kpiTotal">0</b>
+              <span>Total tasks</span>
+            </div>
+            <div class="kpi">
+              <b id="kpiOpen">0</b>
+              <span>Open</span>
+            </div>
+            <div class="kpi">
+              <b id="kpiDone">0</b>
+              <span>Done</span>
+            </div>
+          </div>
+
+          <div class="list" id="taskList" aria-label="Tasks"></div>
+        </div>
+      </section>
+
+      <!-- NOTES -->
+      <section class="card" aria-label="Notes">
+        <div class="card-header">
+          <div class="card-title">
+            <h2>Quick Notes</h2>
+            <span>Ideas, meeting notes, daily plan—anything.</span>
+          </div>
+
+          <div class="row">
+            <button class="icon-btn clickable" id="copyNotes" type="button" title="Copy notes" aria-label="Copy notes">
+              <svg class="svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M9 9h10v12H9V9Z" stroke="currentColor" stroke-width="2" />
+                <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+
+            <button class="icon-btn clickable" id="clearNotes" type="button" title="Clear notes" aria-label="Clear notes">
+              <svg class="svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M6 6l1 16a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="content grid">
+          <textarea class="field clickable" id="notes" placeholder="Write your notes here…"></textarea>
+          <p class="hint" id="notesHint">Autosaves while you type.</p>
+
+          <div class="footer-note">
+            Built as a single HTML file — clean, fast, and portable.
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    ;(() => {
+      // --------- Helpers ----------
+      const $ = (sel, root=document) => root.querySelector(sel);
+      const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+      const uid = () => Math.random().toString(16).slice(2) + Date.now().toString(16);
+
+      const STORAGE_KEY = "focusboard:v1";
+      const THEME_KEY = "focusboard:theme";
+
+      const nowText = () => {
+        const d = new Date();
+        const opts = { weekday: "short", year:"numeric", month:"short", day:"2-digit", hour:"2-digit", minute:"2-digit" };
+        return d.toLocaleString(undefined, opts);
+      };
+
+      // --------- State ----------
+      const state = {
+        tasks: [],
+        notes: "",
+        filter: "all",
+        theme: "dark"
+      };
+
+      function load() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            state.tasks = Array.isArray(parsed.tasks) ? parsed.tasks : [];
+            state.notes = typeof parsed.notes === "string" ? parsed.notes : "";
+          }
+        } catch {}
+        const savedTheme = localStorage.getItem(THEME_KEY);
+        if (savedTheme === "light" || savedTheme === "dark") state.theme = savedTheme;
+      }
+
+      function save() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ tasks: state.tasks, notes: state.notes }));
+      }
+
+      function setTheme(theme) {
+        state.theme = theme;
+        document.documentElement.setAttribute("data-theme", theme);
+        localStorage.setItem(THEME_KEY, theme);
+      }
+
+      // --------- Render ----------
+      function tagLabel(pri) {
+        if (pri === "bad") return "High";
+        if (pri === "warn") return "Medium";
+        return "Low";
+      }
+
+      function filteredTasks() {
+        if (state.filter === "open") return state.tasks.filter(t => !t.done);
+        if (state.filter === "done") return state.tasks.filter(t => t.done);
+        return state.tasks;
+      }
+
+      function updateKPIs() {
+        const total = state.tasks.length;
+        const done = state.tasks.filter(t => t.done).length;
+        const open = total - done;
+        $("#kpiTotal").textContent = total;
+        $("#kpiOpen").textContent = open;
+        $("#kpiDone").textContent = done;
+      }
+
+      function renderTasks() {
+        const list = $("#taskList");
+        list.innerHTML = "";
+
+        const tasks = filteredTasks().sort((a,b) => {
+          // Done tasks go lower
+          if (a.done !== b.done) return a.done ? 1 : -1;
+          // Priority: bad > warn > good
+          const score = (p) => p === "bad" ? 3 : p === "warn" ? 2 : 1;
+          if (score(b.priority) !== score(a.priority)) return score(b.priority) - score(a.priority);
+          return (b.createdAt || 0) - (a.createdAt || 0);
+        });
+
+        if (tasks.length === 0) {
+          const empty = document.createElement("div");
+          empty.className = "item";
+          empty.innerHTML = `
+            <div class="text">
+              <strong>Nothing here yet.</strong>
+              <small>Add a task above, or switch filters.</small>
+            </div>
+            <span class="tag good">Clean</span>
+          `;
+          list.appendChild(empty);
+          updateKPIs();
+          return;
+        }
+
+        for (const t of tasks) {
+          const el = document.createElement("div");
+          el.className = "item clickable";
+          el.dataset.id = t.id;
+
+          el.innerHTML = `
+            <div class="check">
+              <input type="checkbox" ${t.done ? "checked" : ""} aria-label="Mark done" />
+            </div>
+            <div class="text">
+              <strong style="${t.done ? "text-decoration: line-through; opacity:0.75;" : ""}">${escapeHtml(t.text)}</strong>
+              <small>${t.done ? "Completed" : "Open"} • ${new Date(t.createdAt).toLocaleString()}</small>
+            </div>
+            <span class="tag ${t.priority}">${tagLabel(t.priority)}</span>
+            <button class="icon-btn clickable" data-action="delete" type="button" aria-label="Delete task" title="Delete">
+              <svg class="svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M6 6l1 16a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+          `;
+
+          // Toggle done
+          const cb = $("input[type='checkbox']", el);
+          cb.addEventListener("change", () => {
+            t.done = cb.checked;
+            save();
+            renderTasks();
+          });
+
+          // Delete
+          const del = $("[data-action='delete']", el);
+          del.addEventListener("click", (e) => {
+            e.stopPropagation();
+            state.tasks = state.tasks.filter(x => x.id !== t.id);
+            save();
+            renderTasks();
+          });
+
+          // Click on item focuses checkbox (nice UX)
+          el.addEventListener("click", (e) => {
+            if (e.target.closest("button")) return;
+            cb.checked = !cb.checked;
+            t.done = cb.checked;
+            save();
+            renderTasks();
+          });
+
+          list.appendChild(el);
+        }
+
+        updateKPIs();
+      }
+
+      function escapeHtml(str){
+        return String(str)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      // --------- Actions ----------
+      function addTask() {
+        const input = $("#taskText");
+        const pri = $("#priority").value;
+        const text = (input.value || "").trim();
+        if (!text) {
+          input.focus();
+          pulseHint("Please type a task first.", "warn");
+          return;
+        }
+
+        state.tasks.unshift({
+          id: uid(),
+          text,
+          priority: pri,
+          done: false,
+          createdAt: Date.now()
+        });
+
+        input.value = "";
+        save();
+        renderTasks();
+        pulseHint("Task added ✓", "good");
+      }
+
+      function clearDone() {
+        const before = state.tasks.length;
+        state.tasks = state.tasks.filter(t => !t.done);
+        const removed = before - state.tasks.length;
+        save();
+        renderTasks();
+        pulseHint(removed ? `Removed ${removed} done task(s).` : "No done tasks to remove.", removed ? "good" : "warn");
+      }
+
+      function exportData() {
+        const payload = {
+          exportedAt: new Date().toISOString(),
+          tasks: state.tasks,
+          notes: state.notes,
+          theme: state.theme
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "focusboard_export.json";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+
+        URL.revokeObjectURL(url);
+        pulseHint("Exported focusboard_export.json", "good");
+      }
+
+      function copyNotes() {
+        const notes = $("#notes").value || "";
+        if (!notes.trim()) {
+          pulseNotesHint("Nothing to copy yet.", "warn");
+          return;
+        }
+        navigator.clipboard?.writeText(notes).then(() => {
+          pulseNotesHint("Copied to clipboard ✓", "good");
+        }).catch(() => {
+          pulseNotesHint("Copy blocked by browser. Select text and copy manually.", "warn");
+        });
+      }
+
+      function clearNotes() {
+        $("#notes").value = "";
+        state.notes = "";
+        save();
+        pulseNotesHint("Notes cleared.", "warn");
+      }
+
+      function pulseHint(msg, tone="good") {
+        const el = $(".hint");
+        const old = el.textContent;
+        el.textContent = msg;
+        el.style.color = tone === "good" ? "rgba(67,240,179,0.95)"
+                    : tone === "warn" ? "rgba(255,209,102,0.98)"
+                    : "rgba(255,92,122,0.98)";
+        setTimeout(() => {
+          el.textContent = old;
+          el.style.color = "";
+        }, 1200);
+      }
+
+      function pulseNotesHint(msg, tone="good") {
+        const el = $("#notesHint");
+        const old = el.textContent;
+        el.textContent = msg;
+        el.style.color = tone === "good" ? "rgba(67,240,179,0.95)"
+                    : tone === "warn" ? "rgba(255,209,102,0.98)"
+                    : "rgba(255,92,122,0.98)";
+        setTimeout(() => {
+          el.textContent = old;
+          el.style.color = "";
+        }, 1300);
+      }
+
+      // --------- Date/Time ----------
+      function tickTime(){
+        $("#datetime").textContent = nowText();
+      }
+
+      // --------- Custom Cursor ----------
+      function setupCursor(){
+        const ring = $("#cursorRing");
+        const dot  = $("#cursorDot");
+
+        let x = window.innerWidth / 2, y = window.innerHeight / 2;
+        let rx = x, ry = y;
+
+        const speed = 0.16; // smoothing for ring
+
+        function move(e){
+          x = e.clientX;
+          y = e.clientY;
+          dot.style.transform = `translate(${x}px, ${y}px)`;
+          ring.classList.remove("is-hidden");
+          dot.classList.remove("is-hidden");
+        }
+
+        function loop(){
+          rx += (x - rx) * speed;
+          ry += (y - ry) * speed;
+          ring.style.transform = `translate(${rx}px, ${ry}px)`;
+          requestAnimationFrame(loop);
+        }
+
+        function down(){ ring.classList.add("is-down"); }
+        function up(){ ring.classList.remove("is-down"); }
+
+        function enter(){ ring.classList.remove("is-hidden"); dot.classList.remove("is-hidden"); }
+        function leave(){ ring.classList.add("is-hidden"); dot.classList.add("is-hidden"); }
+
+        // Hover detection: buttons/links/inputs/anything clickable
+        const hoverSelector = "button, a, .clickable, input, textarea, select, label";
+        document.addEventListener("mouseover", (e) => {
+          if (e.target.closest(hoverSelector)) ring.classList.add("is-hover");
+        });
+        document.addEventListener("mouseout", (e) => {
+          if (e.target.closest(hoverSelector)) ring.classList.remove("is-hover");
+        });
+
+        window.addEventListener("mousemove", move, { passive: true });
+        window.addEventListener("mousedown", down);
+        window.addEventListener("mouseup", up);
+        window.addEventListener("mouseenter", enter);
+        window.addEventListener("mouseleave", leave);
+
+        loop();
+      }
+
+      // --------- Init ----------
+      function init() {
+        load();
+        setTheme(state.theme);
+
+        // Bind UI
+        $("#addTask").addEventListener("click", addTask);
+        $("#taskText").addEventListener("keydown", (e) => {
+          if (e.key === "Enter") addTask();
+        });
+
+        $("#filter").addEventListener("change", (e) => {
+          state.filter = e.target.value;
+          renderTasks();
+        });
+
+        $("#clearDone").addEventListener("click", clearDone);
+
+        $("#notes").value = state.notes || "";
+        $("#notes").addEventListener("input", (e) => {
+          state.notes = e.target.value;
+          save();
+        });
+
+        $("#copyNotes").addEventListener("click", copyNotes);
+        $("#clearNotes").addEventListener("click", clearNotes);
+
+        $("#toggleTheme").addEventListener("click", () => {
+          setTheme(state.theme === "dark" ? "light" : "dark");
+        });
+
+        $("#exportData").addEventListener("click", exportData);
+
+        tickTime();
+        setInterval(tickTime, 1000 * 10);
+
+        renderTasks();
+        setupCursor();
+      }
+
+      init();
+    })();
+  </script>
+</body>
+</html>
